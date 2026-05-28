@@ -36,6 +36,14 @@ namespace CHATBOTPART2
             // Ask permission to show topics in the WPF UI
             AppendMessage("Welcome to chatbot. What is your name? Please enter your name to start.", true);
 
+            // Voice greeting on startup
+            var voiceCheck = this.FindName("VoiceEnabled") as CheckBox;
+            if (voiceCheck?.IsChecked == true)
+            {
+                // Short, AI-style greeting
+                voiceService.SpeakAsync("Hello! I am your cybersecurity assistant. Please tell me your name to begin.");
+            }
+
             // Disable topic and control buttons until we have a user name
             SetTopicButtonsEnabled(false);
         }
