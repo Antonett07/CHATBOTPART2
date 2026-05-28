@@ -61,7 +61,7 @@ namespace CHATBOTPART2
                     if (!string.IsNullOrWhiteSpace(name))
                     {
                         bot.UserName = name;
-                        AppendMessage($"🤖 Hello, {bot.UserName}! You can now ask about the topics or use the buttons.", true);
+                        AppendMessage($" Hello, {bot.UserName}! You can now ask about the topics or use the buttons.", true);
                         SetTopicButtonsEnabled(true);
                         UserInput.Clear();
                         UserInput.Focus();
@@ -78,7 +78,7 @@ namespace CHATBOTPART2
                 {
                     // treat as regular input
                     var tempResponse = bot.GetResponse(input);
-                    AppendMessage($"🤖 Bot: {tempResponse}", true);
+                    AppendMessage($" Bot: {tempResponse}", true);
                     lastBotMessage = tempResponse;
                     var check2 = this.FindName("VoiceEnabled") as CheckBox;
                     if (check2?.IsChecked == true)
@@ -92,7 +92,7 @@ namespace CHATBOTPART2
 
                 // Otherwise use the provided input as user name
                 bot.UserName = input.Trim();
-                AppendMessage($"🤖 Welcome, {bot.UserName}! You can now ask about the topics or use the buttons.", true);
+                AppendMessage($" Welcome, {bot.UserName}! You can now ask about the topics or use the buttons.", true);
                 SetTopicButtonsEnabled(true);
                 UserInput.Clear();
                 UserInput.Focus();
@@ -101,7 +101,7 @@ namespace CHATBOTPART2
 
             string response = bot.GetResponse(input);
 
-            AppendMessage($"🤖 Bot: {response}", true);
+            AppendMessage($" Bot: {response}", true);
             lastBotMessage = response;
             var check = this.FindName("VoiceEnabled") as CheckBox;
             if (check?.IsChecked == true)
@@ -142,13 +142,13 @@ namespace CHATBOTPART2
             {
                 if (string.IsNullOrWhiteSpace(bot.UserName))
                 {
-                    AppendMessage("🤖 Please enter your name first to access topics.", true);
+                    AppendMessage(" Please enter your name first to access topics.", true);
                     return;
                 }
 
-                AppendMessage($"👤 You selected: {btn.Content}", false);
+                AppendMessage($" You selected: {btn.Content}", false);
                 string response = bot.GetResponse(tag);
-                AppendMessage($"🤖 Bot: {response}", true);
+                AppendMessage($" Bot: {response}", true);
                 lastBotMessage = response;
                 var check = this.FindName("VoiceEnabled") as CheckBox;
                 if (check?.IsChecked == true)
@@ -162,11 +162,11 @@ namespace CHATBOTPART2
         {
             if (string.IsNullOrWhiteSpace(bot.UserName))
             {
-                AppendMessage("🤖 Please enter your name first to access topics.", true);
+                AppendMessage(" Please enter your name first to access topics.", true);
                 return;
             }
             string response = bot.GetResponse("menu");
-            AppendMessage($"🤖 Bot: {response}", true);
+            AppendMessage($" Bot: {response}", true);
             lastBotMessage = response;
             var check = this.FindName("VoiceEnabled") as CheckBox;
             if (check?.IsChecked == true)
@@ -179,11 +179,11 @@ namespace CHATBOTPART2
         {
             if (string.IsNullOrWhiteSpace(bot.UserName))
             {
-                AppendMessage("🤖 Please enter your name first to exit.", true);
+                AppendMessage(" Please enter your name first to exit.", true);
                 return;
             }
-            var farewell = $"👋 Goodbye! Stay safe online!";
-            AppendMessage($"🤖 Bot: {farewell}", true);
+            var farewell = $" Goodbye! Stay safe online!";
+            AppendMessage($" Bot: {farewell}", true);
             var check = this.FindName("VoiceEnabled") as CheckBox;
             if (check?.IsChecked == true)
             {
