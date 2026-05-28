@@ -1,0 +1,115 @@
+﻿using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace CHATBOTPART2
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private readonly CybersecurityBot bot;
+        private readonly VoiceService voiceService;
+        private string lastBotMessage = string.Empty;
+
+        public MainWindow()
+        {
+            InitializeComponent();
+
+            bot = new CybersecurityBot();
+
+            UIHelper.PlayWelcomeSound();
+
+            AppendMessage("🤖 Welcome to Chatbot Part2!", true);
+
+            // Initialize voice service
+            voiceService = new VoiceService();
+
+            // Ask permission to show topics in the WPF UI
+            AppendMessage("Welcome to chatbot. Can I show you the topics? (yes/no)", true);
+            // For WPF we show topics so user can click buttons
+            UIHelper.ShowMenu();
+        }
+
+        private void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            string input = UserInput.Text;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return;
+            }
+
+            AppendMessage($"👤 You: {input}", false);
+
+            string response = bot.GetResponse(input);
+
+            AppendMessage($"🤖 Bot: {response}", true);
+            lastBotMessage = response;
+            if (VoiceEnabled.IsChecked == true)
+            {
+                voiceService.SpeakAsync(response);
+            }
+
+            UserInput.Clear();
+            UserInput.Focus();
+        }
+
+        private void UserInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                SendButton_Click(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            UserInput.Focus();
+        }
+
+        private void AppendMessage(string message, bool isBot)
+        {
+            Paragraph paragraph = new Paragraph(new Run(message));
+
+            ChatArea.Document.Blocks.Add(paragraph);
+
+            ChatArea.ScrollToEnd();
+        }
+
+        private void TopicButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag)
+            {
+                AppendMessage($"👤 You selected: {btn.Content}", false);
+                string response = bot.GetResponse(tag);
+                AppendMessage($"🤖 Bot: {response}", true);
+                lastBotMessage = response;
+                if (VoiceEnabled.IsChecked == true)
+                {
+                    voiceService.SpeakAsync(response);
+                }
+            }
+        }
+
+        private void ShowTopicsButton_Click(object sender, RoutedEventArgs e)
+        {
+            string response = bot.GetResponse("menu");
+            AppendMessage($"🤖 Bot: {response}", true);
+            lastBotMessage = response;
+            if (VoiceEnabled.IsChecked == true)
+            {
+                voiceService.SpeakAsync(response);
+            }
+        }
+    }
+}

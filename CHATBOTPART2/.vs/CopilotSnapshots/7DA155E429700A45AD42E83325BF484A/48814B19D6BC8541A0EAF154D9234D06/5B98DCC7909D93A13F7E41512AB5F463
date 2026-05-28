@@ -1,0 +1,417 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace CHATBOTPART2
+{
+    public class CybersecurityBot
+    {
+        public string? UserName { get; set; }
+
+        public string LastTopic { get; set; } = string.Empty;
+
+        private readonly Random random = new();
+
+        // Core responses keyed by canonical topic
+        private readonly Dictionary<string, List<string>> keywordResponses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            {
+                "password",
+                new List<string>
+                {
+                    "Use passwords longer than 12 characters.",
+                    "Avoid using birthdays in passwords.",
+                    "Use password managers like Bitwarden.",
+                    "Enable 2FA for all important accounts."
+                }
+            },
+            {
+                "phishing",
+                new List<string>
+                {
+                    "Never click suspicious links.",
+                    "Verify email senders carefully.",
+                    "Scammers pretend to be banks or SARS.",
+                    "Hover over links before clicking."
+                }
+            },
+             {
+                "privacy",
+                new List<string>
+                {
+                    "Review your social media privacy settings.",
+                    "Do not overshare personal information online.",
+                    "Use strong privacy settings on Facebook and Instagram.",
+                    "Avoid public WiFi for sensitive activities."
+                }
+            },
+            {
+                "scam",
+                new List<string>
+                {
+                    "Ignore fake banking calls requesting OTPs.",
+                    "Do not trust investment scams promising quick money.",
+                    "Verify competitions before entering.",
+                    "Report scams to your bank immediately."
+                }
+            }
+            ,
+            {
+                "banking",
+                new List<string>
+                {
+                    "Never share OTPs or banking passwords.",
+                    "Use official banking apps and verify URLs.",
+                    "Set transaction notifications on your account."
+                }
+            },
+            {
+                "vpn",
+                new List<string>
+                {
+                    "Use a reputable VPN when on public WiFi.",
+                    "Avoid free VPNs that log and sell data.",
+                    "Check VPN jurisdiction and privacy policy."
+                }
+            },
+            {
+                "ransomware",
+                new List<string>
+                {
+                    "Keep backups offline to recover from ransomware.",
+                    "Do not open suspicious attachments.",
+                    "Keep your OS and software patched."
+                }
+            },
+            {
+                "social engineering",
+                new List<string>
+                {
+                    "Be cautious when callers ask for personal info.",
+                    "Verify identities before taking urgent requests.",
+                    "Educate staff about common social engineering tricks."
+                }
+            }
+        };
+
+        // Concrete examples for each topic to illustrate real-world scenarios
+        private readonly Dictionary<string, string> topicExamples = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "password", "Example good password (passphrase): 'CorrectHorseBatteryStaple!2024'\nBad example: 'Password123' or using your birthdate.\nTip: combine unrelated words, add punctuation and numbers." },
+            { "phishing", "Phishing email example:\nFrom: support@yourbank-secure.com\nSubject: Urgent: Verify your account\nBody: 'We detected suspicious activity. Click https://yourbank.verify-login.example to confirm your details.'\nAlways verify the link and sender before clicking." },
+            { "privacy", "Privacy example:\nPosting a photo with your ID visible or sharing your full address on social media can expose you to identity theft.\nTip: remove location from photos and restrict audience to friends only." },
+            { "scam", "Scam example:\nA caller claims to be from your bank and asks for the OTP to 'fix a transaction.' Legitimate banks never ask for OTPs over the phone.\nIf in doubt, hang up and call the bank using the number on the back of your card." },
+            { "banking", "Banking fraud example:\nA website mimics your bank's login page at 'bank.example.login-security.com'. Always check for the correct domain and use the official app when possible." },
+            { "vpn", "VPN example:\nA free VPN app requests many permissions and logs browsing activity. This may sell your data to third parties. Choose reputable paid VPNs with a clear no-logs policy." },
+            { "ransomware", "Ransomware example:\nAn email attachment 'Invoice.doc' contains a macro that downloads malware. Never enable macros from unknown senders; validate attachments before opening." },
+            { "social engineering", "Social engineering example:\nAn attacker calls pretending to be IT support and asks you to install remote software 'to fix your PC'. Verify identity through official channels before granting access." }
+        };
+
+        private readonly List<string> topics = new()
+        {
+            "passwords",
+            "phishing",
+            "scam",
+            "privacy",
+            "banking",
+            "vpn",
+            "ransomware",
+            "social engineering"
+        };
+
+        // Detailed topic explanations for deeper responses
+        private readonly Dictionary<string, string> topicDetails = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "password", "Passwords protect your accounts by ensuring only authorized users can access them. Use a unique, long passphrase (12+ characters) combining words and symbols, avoid reuse across sites, and store them in a reputable password manager. Enable multi-factor authentication (MFA) wherever possible to block access even if a password is leaked." },
+            { "phishing", "Phishing is a social engineering attack where attackers impersonate trusted parties to trick you into revealing credentials or clicking malicious links. Look out for mismatched URLs, unexpected attachments, poor spelling, and urgent requests. Verify sender addresses, hover over links to inspect destinations, and use email filters and enterprise protections when available." },
+            { "privacy", "Online privacy means controlling what personal information you share and who can see it. Review privacy settings on social platforms, limit data shared in public profiles, avoid oversharing sensitive details, and regularly audit app permissions. Use strong, separate accounts for personal and work use, and consider privacy-focused browser extensions and trackers blockers." },
+            { "scam", "Scams take many forms such as phone scams, investment frauds, romance scams, and fake technical support. Scammers often create urgency, ask for payments or OTPs, or request confidential info. Never share OTPs, verify offers independently, and report suspicious activity to relevant authorities or your bank." },
+            { "banking", "Banking security focuses on protecting financial access: enable transaction alerts, use strong authentication, monitor statements frequently, and avoid conducting sensitive transactions on public WiFi. Set limits and notifications, register for official mobile banking apps, and contact your bank immediately if you suspect fraud." },
+            { "vpn", "A VPN (Virtual Private Network) encrypts your network traffic and routes it through a remote server, protecting you on untrusted networks. Use reputable, paid VPN services with clear no-logs policies and strong encryption. Avoid free VPNs that may sell your data or inject ads. Remember that a VPN does not make you anonymous—safe browsing habits still matter." },
+            { "ransomware", "Ransomware is malware that encrypts files and demands payment for the decryption key. To mitigate: maintain offline backups, apply timely patches, restrict admin rights, use email filtering, and train users to avoid malicious attachments. If infected, isolate affected systems and contact incident response teams—paying ransom is discouraged as it doesn't guarantee recovery." },
+            { "social engineering", "Social engineering manipulates people into divulging confidential information or performing actions that compromise security. Common techniques include impersonation, pretexting, and baiting. Countermeasures include verification protocols, security awareness training, and robust approval processes for requests involving sensitive data or transfers." }
+        };
+
+        // Map common synonyms/variants to canonical topics
+        private readonly Dictionary<string, string> synonymMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "passwords", "password" },
+            { "pwd", "password" },
+            { "passcode", "password" },
+            { "2fa", "password" },
+            { "two-factor", "password" },
+            { "two factor", "password" },
+            { "one-time password", "scam" },
+            { "otp", "scam" },
+            { "phish", "phishing" },
+            { "email", "phishing" },
+            { "scams", "scam" },
+            { "privacy policy", "privacy" },
+            { "bank", "banking" },
+            { "atm", "banking" },
+            { "virtual private network", "vpn" },
+            { "malware", "ransomware" },
+            { "virus", "ransomware" },
+            { "social-engineering", "social engineering" },
+            { "socialengineering", "social engineering" }
+        };
+
+        // General intent responses
+        private readonly Dictionary<string, string> generalResponses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "greeting", "Hello! I can help with passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering. Ask me about any of these topics." },
+            { "thanks", "You're welcome! Stay safe online." },
+            { "help", "You can ask me about security topics like: passwords, phishing, scams, privacy, banking, VPNs, ransomware, social engineering. Or click a topic button." },
+            { "whatcanask", "Ask me about passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering." }
+        };
+
+        public string GetResponse(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return "❌ Please enter a valid message.";
+            }
+            input = input.ToLower().Trim();
+
+            // Quick replies / menu
+            if (input == "yes" || input == "y" || input == "menu" || input == "topics" || input.Contains("show topics") || input.Contains("show me topics") || input.Contains("list topics"))
+            {
+                return GetTopicsList();
+            }
+
+            // Detect sentiment first
+            DetectSentiment(input, out string moodResponse);
+            if (!string.IsNullOrEmpty(moodResponse))
+            {
+                return moodResponse;
+            }
+
+            // Normalize: remove common punctuation for token matching
+            var normalized = Regex.Replace(input, "[.,!?;:]", "").ToLowerInvariant();
+            var tokens = normalized.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // Scoring: count matches for each canonical topic
+            var scores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var token in tokens)
+            {
+                // direct match with canonical keywords
+                foreach (var key in keywordResponses.Keys)
+                {
+                    if (Regex.IsMatch(token, "^" + Regex.Escape(key) + "$", RegexOptions.IgnoreCase))
+                    {
+                        scores[key] = scores.GetValueOrDefault(key) + 1;
+                    }
+                }
+
+                // synonyms
+                if (synonymMap.TryGetValue(token, out var mapped))
+                {
+                    scores[mapped] = scores.GetValueOrDefault(mapped) + 2; // weight synonyms a bit higher
+                }
+            }
+
+            // Also check for multi-word phrases in the original normalized input
+            foreach (var kv in synonymMap)
+            {
+                if (normalized.Contains(kv.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    scores[kv.Value] = scores.GetValueOrDefault(kv.Value) + 2;
+                }
+            }
+
+            // Choose best scoring topic
+            if (scores.Count > 0)
+            {
+                var best = scores.OrderByDescending(k => k.Value).First();
+                if (best.Value > 0 && keywordResponses.ContainsKey(best.Key))
+                {
+                    LastTopic = best.Key;
+                    var responses = keywordResponses[best.Key];
+
+                    // If the user explicitly asked for details or used the topic name alone, return a detailed explanation
+                    bool wantsDetail = input == best.Key ||
+                                       input.Contains("explain") ||
+                                       input.Contains("what is") ||
+                                       input.Contains("details") ||
+                                       input.Contains("tell me more") ||
+                                       input.Contains("how does") ||
+                                       input.Contains("information about") ||
+                                       input.Contains("more info");
+
+                    bool wantsExamples = input.Contains("example") || input.Contains("examples") || input.Contains("show me") || input.Contains("for example");
+                    bool wantsMitigation = input.Contains("mitigation") || input.Contains("prevent") || input.Contains("how to") || input.Contains("steps") || input.Contains("protect");
+
+                    if (wantsExamples && topicExamples.TryGetValue(best.Key, out var examples))
+                    {
+                        var detailPart = topicDetails.ContainsKey(best.Key) ? topicDetails[best.Key] : string.Empty;
+                        return examples + "\n\n" + detailPart;
+                    }
+
+                    if (wantsMitigation && topicDetails.TryGetValue(best.Key, out var mitigationDetail))
+                    {
+                        // Provide a mitigation-focused response
+                        var mitigation = "\n\nMitigation steps: ";
+                        switch (best.Key.ToLowerInvariant())
+                        {
+                            case "password":
+                                mitigation += "use unique passphrases, enable MFA, use a trusted password manager, enable account alerts";
+                                break;
+                            case "phishing":
+                                mitigation += "verify sender, don't click unknown links, use email filters, confirm requests via phone";
+                                break;
+                            case "privacy":
+                                mitigation += "review privacy settings, limit sharing, use privacy tools and track permissions";
+                                break;
+                            case "scam":
+                                mitigation += "verify callers, never share OTPs, contact institutions via official channels";
+                                break;
+                            case "banking":
+                                mitigation += "use official apps, enable alerts, avoid transactions on public WiFi";
+                                break;
+                            case "vpn":
+                                mitigation += "choose reputable VPN, review privacy policy, avoid free VPNs";
+                                break;
+                            case "ransomware":
+                                mitigation += "maintain offline backups, update systems, use endpoint protection and caution with attachments";
+                                break;
+                            case "social engineering":
+                                mitigation += "verify identities, use strict approval workflows, train staff regularly";
+                                break;
+                            default:
+                                mitigation += "follow security best practices";
+                                break;
+                        }
+
+                        return mitigationDetail + mitigation;
+                    }
+
+                    if (wantsDetail && topicDetails.TryGetValue(best.Key, out var detail))
+                    {
+                        // Provide the detailed explanation plus a short actionable checklist
+                        var checklist = "\n\nQuick checklist: ";
+                        switch (best.Key.ToLowerInvariant())
+                        {
+                            case "password":
+                                checklist += "use unique passphrases, enable MFA, use a password manager";
+                                break;
+                            case "phishing":
+                                checklist += "verify senders, hover links, don't enable macros, report suspicious emails";
+                                break;
+                            case "privacy":
+                                checklist += "review privacy settings, limit public data, audit app permissions";
+                                break;
+                            case "scam":
+                                checklist += "don't share OTPs, verify offers, report scams to authorities";
+                                break;
+                            case "banking":
+                                checklist += "enable alerts, use official apps, monitor statements, avoid public WiFi";
+                                break;
+                            case "vpn":
+                                checklist += "choose reputable VPNs, check privacy policy, avoid free VPNs";
+                                break;
+                            case "ransomware":
+                                checklist += "maintain offline backups, patch systems, restrict privileges";
+                                break;
+                            case "social engineering":
+                                checklist += "verify identities, follow approval workflows, train staff";
+                                break;
+                            default:
+                                checklist += "follow best security practices";
+                                break;
+                        }
+
+                        return detail + checklist;
+                    }
+
+                    // Otherwise return a short tip and suggest asking for details
+                    var resp = responses[random.Next(responses.Count)];
+                    return resp;
+                }
+            }
+
+            if (input.Contains("another tip") ||
+                input.Contains("tell me more") ||
+                input.Contains("explain more"))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && keywordResponses.ContainsKey(LastTopic))
+                {
+                    var responses = keywordResponses[LastTopic];
+                    return responses[random.Next(responses.Count)];
+                }
+            }
+
+            if (input.Contains("how are you"))
+            {
+                return $"I'm doing great, {UserName}!";
+            }
+
+            // Greetings and general intents
+            if (Regex.IsMatch(input, "\b(hi|hello|hey|good morning|good afternoon|good evening)\b", RegexOptions.IgnoreCase))
+            {
+                return generalResponses["greeting"];
+            }
+
+            if (Regex.IsMatch(input, "\b(thanks|thank you|cheers)\b", RegexOptions.IgnoreCase))
+            {
+                return generalResponses["thanks"];
+            }
+
+            if (input.Contains("help") || input.Contains("what can i ask") || input.Contains("what can i ask?"))
+            {
+                return generalResponses["help"];
+            }
+
+            if (input.Contains("purpose"))
+            {
+                return "My purpose is to educate users about cybersecurity awareness.";
+            }
+
+            if (input.Contains("what can i ask"))
+            {
+                return "Ask me about passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering.";
+            }
+
+            return "🤔 I’m not sure I understand. Could you rephrase that?";
+        }
+
+        private void DetectSentiment(string input, out string response)
+        {
+            response = string.Empty;
+
+            if (input.Contains("worried"))
+            {
+                response = "It’s understandable to feel worried about online scams. Always verify links and never share OTPs.";
+                return;
+            }
+
+            if (input.Contains("frustrated"))
+            {
+                response = "Cybersecurity can feel overwhelming, but small habits make a huge difference.";
+                return;
+            }
+
+            if (input.Contains("curious"))
+            {
+                response = "Curiosity is great! Learning about cybersecurity keeps you safer online.";
+            }
+        }
+
+        public bool ShouldExit(string input)
+        {
+            return input.ToLower() switch
+            {
+                "exit" or "quit" or "bye" => true,
+                _ => false
+            };
+        }
+
+        private string GetTopicsList()
+        {
+            return "Topics: " + string.Join(", ", topics);
+        }
+    }
+}

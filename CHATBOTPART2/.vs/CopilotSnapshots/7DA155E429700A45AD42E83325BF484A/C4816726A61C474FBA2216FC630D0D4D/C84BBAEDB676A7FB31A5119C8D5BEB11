@@ -1,0 +1,59 @@
+﻿using System.Text;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
+using System.Windows.Shapes;
+
+namespace CHATBOTPART2
+{
+    /// <summary>
+    /// Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window
+    {
+        private readonly CybersecurityBot bot;
+
+        public MainWindow()
+        {
+            InitializeComponent();
+
+            bot = new CybersecurityBot();
+
+            UIHelper.PlayWelcomeSound();
+
+            AppendMessage("🤖 Welcome to Chatbot Part2!", true);
+        }
+
+        private void SendButton_Click(object sender, RoutedEventArgs e)
+        {
+            string input = UserInput.Text;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return;
+            }
+
+            AppendMessage($"👤 You: {input}", false);
+
+            string response = bot.GetResponse(input);
+
+            AppendMessage($"🤖 Bot: {response}", true);
+
+            UserInput.Clear();
+        }
+
+        private void AppendMessage(string message, bool isBot)
+        {
+            Paragraph paragraph = new Paragraph(new Run(message));
+
+            ChatArea.Document.Blocks.Add(paragraph);
+
+            ChatArea.ScrollToEnd();
+        }
+    }
+}

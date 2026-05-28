@@ -1,0 +1,209 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace CHATBOTPART2
+{
+    public class CybersecurityBot
+    {
+        public string? UserName { get; set; }
+
+        public string LastTopic { get; set; } = string.Empty;
+
+        private readonly Random random = new();
+
+        private readonly Dictionary<string, List<string>> keywordResponses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            {
+                "password",
+                new List<string>
+                {
+                    "Use passwords longer than 12 characters.",
+                    "Avoid using birthdays in passwords.",
+                    "Use password managers like Bitwarden.",
+                    "Enable 2FA for all important accounts."
+                }
+            },
+            {
+                "phishing",
+                new List<string>
+                {
+                    "Never click suspicious links.",
+                    "Verify email senders carefully.",
+                    "Scammers pretend to be banks or SARS.",
+                    "Hover over links before clicking."
+                }
+            },
+             {
+                "privacy",
+                new List<string>
+                {
+                    "Review your social media privacy settings.",
+                    "Do not overshare personal information online.",
+                    "Use strong privacy settings on Facebook and Instagram.",
+                    "Avoid public WiFi for sensitive activities."
+                }
+            },
+            {
+                "scam",
+                new List<string>
+                {
+                    "Ignore fake banking calls requesting OTPs.",
+                    "Do not trust investment scams promising quick money.",
+                    "Verify competitions before entering.",
+                    "Report scams to your bank immediately."
+                }
+            }
+            ,
+            {
+                "banking",
+                new List<string>
+                {
+                    "Never share OTPs or banking passwords.",
+                    "Use official banking apps and verify URLs.",
+                    "Set transaction notifications on your account."
+                }
+            },
+            {
+                "vpn",
+                new List<string>
+                {
+                    "Use a reputable VPN when on public WiFi.",
+                    "Avoid free VPNs that log and sell data.",
+                    "Check VPN jurisdiction and privacy policy."
+                }
+            },
+            {
+                "ransomware",
+                new List<string>
+                {
+                    "Keep backups offline to recover from ransomware.",
+                    "Do not open suspicious attachments.",
+                    "Keep your OS and software patched."
+                }
+            },
+            {
+                "social engineering",
+                new List<string>
+                {
+                    "Be cautious when callers ask for personal info.",
+                    "Verify identities before taking urgent requests.",
+                    "Educate staff about common social engineering tricks."
+                }
+            }
+        };
+
+        private readonly List<string> topics = new()
+        {
+            "passwords",
+            "phishing",
+            "scam",
+            "privacy",
+            "banking",
+            "vpn",
+            "ransomware",
+            "social engineering"
+        };
+
+        public string GetResponse(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return "❌ Please enter a valid message.";
+            }
+
+            input = input.ToLower().Trim();
+
+            // If the user asked to see topics or answered 'yes' when asked
+            if (input == "yes" || input == "y" || input == "menu" || input == "topics" || input.Contains("show topics") || input.Contains("show me topics"))
+            {
+                return GetTopicsList();
+            }
+
+            DetectSentiment(input, out string moodResponse);
+
+            if (!string.IsNullOrEmpty(moodResponse))
+            {
+                return moodResponse;
+            }
+
+            foreach (var keyword in keywordResponses.Keys)
+            {
+                if (input.Contains(keyword))
+                {
+                    LastTopic = keyword;
+
+                    var responses = keywordResponses[keyword];
+
+                    return responses[random.Next(responses.Count)];
+                }
+            }
+
+            if (input.Contains("another tip") ||
+                input.Contains("tell me more") ||
+                input.Contains("explain more"))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && keywordResponses.ContainsKey(LastTopic))
+                {
+                    var responses = keywordResponses[LastTopic];
+                    return responses[random.Next(responses.Count)];
+                }
+            }
+
+            if (input.Contains("how are you"))
+            {
+                return $"I'm doing great, {UserName}!";
+            }
+
+            if (input.Contains("purpose"))
+            {
+                return "My purpose is to educate users about cybersecurity awareness.";
+            }
+
+            if (input.Contains("what can i ask"))
+            {
+                return "Ask me about passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering.";
+            }
+
+            return "🤔 I’m not sure I understand. Could you rephrase that?";
+        }
+
+        private void DetectSentiment(string input, out string response)
+        {
+            response = string.Empty;
+
+            if (input.Contains("worried"))
+            {
+                response = "It’s understandable to feel worried about online scams. Always verify links and never share OTPs.";
+                return;
+            }
+
+            if (input.Contains("frustrated"))
+            {
+                response = "Cybersecurity can feel overwhelming, but small habits make a huge difference.";
+                return;
+            }
+
+            if (input.Contains("curious"))
+            {
+                response = "Curiosity is great! Learning about cybersecurity keeps you safer online.";
+            }
+        }
+
+        public bool ShouldExit(string input)
+        {
+            return input.ToLower() switch
+            {
+                "exit" or "quit" or "bye" => true,
+                _ => false
+            };
+        }
+
+        private string GetTopicsList()
+        {
+            return "Topics: " + string.Join(", ", topics);
+        }
+    }
+}

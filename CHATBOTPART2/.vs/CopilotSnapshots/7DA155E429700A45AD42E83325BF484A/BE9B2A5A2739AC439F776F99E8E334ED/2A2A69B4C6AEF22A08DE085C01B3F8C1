@@ -1,0 +1,745 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace CHATBOTPART2
+{
+    public class CybersecurityBot
+    {
+        public string? UserName { get; set; }
+
+        private readonly Services.MemoryService? memoryService;
+
+        public string LastTopic { get; set; } = string.Empty;
+
+        // Conversation state to keep flow natural
+        private bool expectingFollowUp = false;
+        private string lastResponseCategory = string.Empty; // "tip", "detail", "example", "mitigation"
+
+        private readonly Random random = new();
+
+        // Topic model to organize tips, details, examples, mitigations and checklist
+        private class Topic
+        {
+            public string Key { get; init; } = string.Empty;
+            public List<string> Tips { get; init; } = new();
+            public string Detail { get; init; } = string.Empty;
+            public List<string> Examples { get; init; } = new();
+            public List<string> Mitigations { get; init; } = new();
+            public List<string> Checklist { get; init; } = new();
+        }
+
+        // Centralized topics dictionary for efficient lookup and OOP organization
+        private readonly Dictionary<string, Topic> topicsDict = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["password"] = new Topic
+            {
+                Key = "password",
+                Tips = new List<string>
+                {
+                    "Use passwords longer than 12 characters.",
+                    "Avoid using birthdays in passwords.",
+                    "Use password managers like Bitwarden.",
+                    "Enable 2FA for all important accounts."
+                },
+                Detail = "Passwords protect your accounts by ensuring only authorized users can access them. Use a unique, long passphrase (12+ characters) combining words and symbols, avoid reuse across sites, and store them in a reputable password manager. Enable multi-factor authentication (MFA) wherever possible to block access even if a password is leaked.",
+                Examples = new List<string>
+                {
+                    "Example good password (passphrase): 'CorrectHorseBatteryStaple!2024'. Bad example: 'Password123'."
+                },
+                Mitigations = new List<string>
+                {
+                    "Use unique passphrases",
+                    "Enable MFA",
+                    "Use a trusted password manager",
+                    "Enable account alerts"
+                },
+                Checklist = new List<string> { "use unique passphrases", "enable MFA", "use a password manager" }
+            },
+            ["phishing"] = new Topic
+            {
+                Key = "phishing",
+                Tips = new List<string>
+                {
+                    "Never click suspicious links.",
+                    "Verify email senders carefully.",
+                    "Scammers pretend to be banks or SARS.",
+                    "Hover over links before clicking."
+                },
+                Detail = "Phishing is a social engineering attack where attackers impersonate trusted parties to trick you into revealing credentials or clicking malicious links. Look out for mismatched URLs, unexpected attachments, poor spelling, and urgent requests. Verify sender addresses, hover over links to inspect destinations, and use email filters and enterprise protections when available.",
+                Examples = new List<string>
+                {
+                    "Phishing email example: From: support@yourbank-secure.com; Subject: Urgent: Verify your account; Body: 'We detected suspicious activity. Click https://yourbank.verify-login.example to confirm your details.'"
+                },
+                Mitigations = new List<string>
+                {
+                    "Verify sender",
+                    "Don't click unknown links",
+                    "Use email filters",
+                    "Confirm requests via phone"
+                },
+                Checklist = new List<string> { "verify senders", "hover links", "don't enable macros" }
+            },
+            ["privacy"] = new Topic
+            {
+                Key = "privacy",
+                Tips = new List<string>
+                {
+                    "Review your social media privacy settings.",
+                    "Do not overshare personal information online.",
+                    "Use strong privacy settings on Facebook and Instagram.",
+                    "Avoid public WiFi for sensitive activities."
+                },
+                Detail = "Online privacy means controlling what personal information you share and who can see it. Review privacy settings on social platforms, limit data shared in public profiles, avoid oversharing sensitive details, and regularly audit app permissions. Use strong, separate accounts for personal and work use, and consider privacy-focused browser extensions and tracker blockers.",
+                Examples = new List<string>
+                {
+                    "Privacy example: Posting a photo with your ID visible or sharing your full address on social media can expose you to identity theft."
+                },
+                Mitigations = new List<string> { "Review privacy settings", "Limit public sharing", "Audit app permissions" },
+                Checklist = new List<string> { "review privacy settings", "limit public data", "audit app permissions" }
+            },
+            ["scam"] = new Topic
+            {
+                Key = "scam",
+                Tips = new List<string>
+                {
+                    "Ignore fake banking calls requesting OTPs.",
+                    "Do not trust investment scams promising quick money.",
+                    "Verify competitions before entering.",
+                    "Report scams to your bank immediately."
+                },
+                Detail = "Scams take many forms such as phone scams, investment frauds, romance scams, and fake technical support. Scammers often create urgency, ask for payments or OTPs, or request confidential info. Never share OTPs, verify offers independently, and report suspicious activity to relevant authorities or your bank.",
+                Examples = new List<string>
+                {
+                    "Scam example: A caller claims to be from your bank and asks for the OTP to 'fix a transaction.' Legitimate banks never ask for OTPs over the phone."
+                },
+                Mitigations = new List<string> { "Verify callers", "Never share OTPs", "Report suspicious activity" },
+                Checklist = new List<string> { "don't share OTPs", "verify offers", "report scams" }
+            },
+            ["banking"] = new Topic
+            {
+                Key = "banking",
+                Tips = new List<string>
+                {
+                    "Never share OTPs or banking passwords.",
+                    "Use official banking apps and verify URLs.",
+                    "Set transaction notifications on your account."
+                },
+                Detail = "Banking security focuses on protecting financial access: enable transaction alerts, use strong authentication, monitor statements frequently, and avoid conducting sensitive transactions on public WiFi. Set limits and notifications, register for official mobile banking apps, and contact your bank immediately if you suspect fraud.",
+                Examples = new List<string>
+                {
+                    "Banking fraud example: A website mimics your bank's login page at 'bank.example.login-security.com'. Always check for the correct domain and use the official app when possible."
+                },
+                Mitigations = new List<string> { "Use official apps", "Enable alerts", "Avoid public WiFi" },
+                Checklist = new List<string> { "enable alerts", "use official apps", "monitor statements" }
+            },
+            ["vpn"] = new Topic
+            {
+                Key = "vpn",
+                Tips = new List<string>
+                {
+                    "Use a reputable VPN when on public WiFi.",
+                    "Avoid free VPNs that log and sell data.",
+                    "Check VPN jurisdiction and privacy policy."
+                },
+                Detail = "A VPN (Virtual Private Network) encrypts your network traffic and routes it through a remote server, protecting you on untrusted networks. Use reputable, paid VPN services with clear no-logs policies and strong encryption. Avoid free VPNs that may sell your data or inject ads.",
+                Examples = new List<string> { "VPN example: A free VPN app requests many permissions and logs browsing activity." },
+                Mitigations = new List<string> { "Choose reputable VPNs", "Review privacy policy", "Avoid free VPNs" },
+                Checklist = new List<string> { "choose reputable VPNs", "check privacy policy" }
+            },
+            ["ransomware"] = new Topic
+            {
+                Key = "ransomware",
+                Tips = new List<string>
+                {
+                    "Keep backups offline to recover from ransomware.",
+                    "Do not open suspicious attachments.",
+                    "Keep your OS and software patched."
+                },
+                Detail = "Ransomware is malware that encrypts files and demands payment for the decryption key. To mitigate: maintain offline backups, apply timely patches, restrict admin rights, use email filtering, and train users to avoid malicious attachments.",
+                Examples = new List<string> { "Ransomware example: An email attachment 'Invoice.doc' contains a macro that downloads malware." },
+                Mitigations = new List<string> { "Maintain offline backups", "Patch systems", "Restrict privileges" },
+                Checklist = new List<string> { "maintain offline backups", "patch systems" }
+            },
+            ["social engineering"] = new Topic
+            {
+                Key = "social engineering",
+                Tips = new List<string>
+                {
+                    "Be cautious when callers ask for personal info.",
+                    "Verify identities before taking urgent requests.",
+                    "Educate staff about common social engineering tricks."
+                },
+                Detail = "Social engineering manipulates people into divulging confidential information or performing actions that compromise security. Common techniques include impersonation, pretexting, and baiting.",
+                Examples = new List<string> { "Social engineering example: An attacker calls pretending to be IT support and asks you to install remote software 'to fix your PC'." },
+                Mitigations = new List<string> { "Verify identities", "Use approval workflows", "Train staff" },
+                Checklist = new List<string> { "verify identities", "use approval workflows" }
+            }
+        };
+
+        // Short empathetic prefixes to use when continuing a topic
+        private readonly Dictionary<string, string> sentimentPrefixes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "worried", "I understand that can feel worrying. " },
+            { "frustrated", "I know this can be frustrating — take it step by step. " },
+            { "curious", "That's great — curious minds learn fast. " }
+        };
+
+        // Topics list is derived from the dictionary keys
+
+        // Map common synonyms/variants to canonical topics
+        private readonly Dictionary<string, string> synonymMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "passwords", "password" },
+            { "pwd", "password" },
+            { "passcode", "password" },
+            { "2fa", "password" },
+            { "two-factor", "password" },
+            { "two factor", "password" },
+            { "one-time password", "scam" },
+            { "otp", "scam" },
+            { "phish", "phishing" },
+            { "email", "phishing" },
+            { "scams", "scam" },
+            { "privacy policy", "privacy" },
+            { "bank", "banking" },
+            { "atm", "banking" },
+            { "virtual private network", "vpn" },
+            { "malware", "ransomware" },
+            { "virus", "ransomware" },
+            { "social-engineering", "social engineering" },
+            { "socialengineering", "social engineering" }
+        };
+
+        // General intent responses (multiple variants for variety)
+        private readonly Dictionary<string, List<string>> generalResponses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "greeting", new List<string>
+                {
+                    "Hello! I can help with passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering.",
+                    "Hi there! Ask me about cybersecurity topics like passwords, phishing, scams, privacy and more.",
+                    "Welcome! I can provide tips on passwords, phishing, scams, privacy, banking security, VPNs, ransomware, and social engineering."
+                }
+            },
+            { "thanks", new List<string>
+                {
+                    "You're welcome! Stay safe online.",
+                    "No problem — glad to help. Keep your accounts secure!",
+                    "Happy to help. Let me know if you need anything else."
+                }
+            },
+            { "help", new List<string>
+                {
+                    "You can ask me about passwords, phishing, scams, privacy, banking, VPNs, ransomware, and social engineering.",
+                    "Try asking about passwords, phishing techniques, common scams, privacy tips or ransomware prevention.",
+                    "I'm here to help with cybersecurity topics: passwords, phishing, scams, privacy, banking, VPNs, ransomware, social engineering."
+                }
+            },
+            { "purpose", new List<string>
+                {
+                    "My purpose is to educate users about cybersecurity awareness.",
+                    "I aim to help you understand common online threats and how to protect yourself.",
+                    "I provide practical tips to stay safe online and avoid scams."
+                }
+            }
+        };
+
+        // Unknown / fallback replies (varied)
+        private readonly List<string> unknownResponses = new()
+        {
+            "🤔 I’m not sure I understand. Could you rephrase that?",
+            "I didn't quite get that — can you ask in a different way?",
+            "Sorry, I'm not sure. Try asking about passwords, phishing, scams, privacy, or say 'help'."
+        };
+
+        // Sentiment responses (variants)
+        private readonly Dictionary<string, List<string>> sentimentResponses = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "worried", new List<string>
+                {
+                    "It’s understandable to feel worried about online scams. Always verify links and never share OTPs.",
+                    "Feeling worried is normal — take your time to verify a message or call before acting on it."
+                }
+            },
+            { "frustrated", new List<string>
+                {
+                    "Cybersecurity can feel overwhelming, but small habits make a huge difference.",
+                    "I know it can be frustrating. Start with one step: use a password manager or enable MFA."
+                }
+            },
+            { "curious", new List<string>
+                {
+                    "Curiosity is great! Learning about cybersecurity keeps you safer online.",
+                    "Great to be curious — ask me about any topic and I can give more details and examples."
+                }
+            }
+        };
+
+        public CybersecurityBot(Services.MemoryService? memory = null)
+        {
+            memoryService = memory;
+            if (memoryService != null && !string.IsNullOrWhiteSpace(memoryService.Memory.UserName))
+            {
+                UserName = memoryService.Memory.UserName;
+            }
+        }
+
+        public string GetResponse(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return "❌ Please enter a valid message.";
+            }
+            input = input.ToLower().Trim();
+            try
+            {
+                // Detect sentiment early and compute empathy prefix
+                DetectSentiment(input, out string moodResponse, out string moodTag);
+                string empathyPrefix = string.Empty;
+                if (!string.IsNullOrEmpty(moodTag))
+                {
+                    // If we have a last topic, use a short empathetic prefix and continue the topic
+                    if (!string.IsNullOrEmpty(LastTopic))
+                    {
+                        sentimentPrefixes.TryGetValue(moodTag, out empathyPrefix);
+                    }
+                    else
+                    {
+                        // No topic yet: return the standalone mood response
+                        return moodResponse;
+                    }
+                }
+
+                // Handle 'remember' commands so the bot can store user info
+                // Keep original input for proper name casing
+                var originalInput = input; // input is already lowercased above
+                if (input.Contains("remember") || input.Contains("remind"))
+                {
+                    // Try to capture a name: patterns like 'remember my name is Alice' or 'remember I'm Alice'
+                    var nameMatch = Regex.Match(originalInput, "remember (?:that )?(?:my name is|my name's|i am|i'm|name is)\s+(?<name>.+)", RegexOptions.IgnoreCase);
+                    if (nameMatch.Success)
+                    {
+                        var name = nameMatch.Groups["name"].Value.Trim().TrimEnd('.', '!', '?');
+                        if (!string.IsNullOrEmpty(name))
+                        {
+                            memoryService?.SaveUserName(name);
+                            UserName = name;
+                            return $"Okay, I'll remember your name as {name}.";
+                        }
+                    }
+
+                    // Try to remember a favourite topic if one of our topic keywords appears
+                    foreach (var key in topicsDict.Keys)
+                    {
+                        if (input.Contains(key, StringComparison.OrdinalIgnoreCase))
+                        {
+                            memoryService?.SaveFavouriteTopic(key);
+                            memoryService?.SaveLastTopic(key);
+                            LastTopic = key;
+                            return $"Got it — I'll remember that you care about {key}.";
+                        }
+                    }
+
+                    // If we couldn't parse a name or topic, ask for clarification
+                    return "Do you want me to remember something? Say 'remember my name is Alice' or 'remember I like phishing'.";
+                }
+
+                // If we're expecting a follow-up referring to the last topic, handle it first (with empathy)
+                if (expectingFollowUp && !string.IsNullOrEmpty(LastTopic))
+                {
+                    var follow = ResolveFollowUp(input, empathyPrefix);
+                    if (!string.IsNullOrEmpty(follow))
+                    {
+                        return follow;
+                    }
+                }
+
+            // Quick replies / menu
+            if (input == "yes" || input == "y" || input == "menu" || input == "topics" || input.Contains("show topics") || input.Contains("show me topics") || input.Contains("list topics"))
+            {
+                return GetTopicsList();
+            }
+
+            // (sentiment already handled above)
+
+                // Normalize: remove common punctuation for token matching
+                var normalized = Regex.Replace(input, "[.,!?;:]", "").ToLowerInvariant();
+                var tokens = normalized.Split(new[] { ' ', '\t', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+
+                // If no tokens, return fallback
+                if (tokens.Length == 0)
+                {
+                    return PickRandom(unknownResponses);
+                }
+
+                // Scoring: count matches for each canonical topic
+                var scores = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var token in tokens)
+            {
+                // direct match with canonical keywords
+                foreach (var key in topicsDict.Keys)
+                {
+                    if (Regex.IsMatch(token, "^" + Regex.Escape(key) + "$", RegexOptions.IgnoreCase))
+                    {
+                        scores[key] = scores.GetValueOrDefault(key) + 1;
+                    }
+                }
+
+                // synonyms
+                if (synonymMap.TryGetValue(token, out var mapped))
+                {
+                    scores[mapped] = scores.GetValueOrDefault(mapped) + 2; // weight synonyms a bit higher
+                }
+            }
+
+            // Also check for multi-word phrases in the original normalized input
+                foreach (var kv in synonymMap)
+            {
+                if (normalized.Contains(kv.Key, StringComparison.OrdinalIgnoreCase))
+                {
+                    scores[kv.Value] = scores.GetValueOrDefault(kv.Value) + 2;
+                }
+            }
+
+            // Choose best scoring topic
+            if (scores.Count > 0)
+            {
+                var best = scores.OrderByDescending(k => k.Value).First();
+                if (best.Value > 0 && topicsDict.ContainsKey(best.Key))
+                {
+                    LastTopic = best.Key;
+                    var topic = topicsDict[best.Key];
+                    var responses = topic.Tips;
+
+                    // If the user explicitly asked for details or used the topic name alone, return a detailed explanation
+                    bool wantsDetail = input == best.Key ||
+                                       input.Contains("explain") ||
+                                       input.Contains("what is") ||
+                                       input.Contains("details") ||
+                                       input.Contains("tell me more") ||
+                                       input.Contains("how does") ||
+                                       input.Contains("information about") ||
+                                       input.Contains("more info");
+
+                    bool wantsExamples = input.Contains("example") || input.Contains("examples") || input.Contains("show me") || input.Contains("for example");
+                    bool wantsMitigation = input.Contains("mitigation") || input.Contains("prevent") || input.Contains("how to") || input.Contains("steps") || input.Contains("protect");
+
+                    if (wantsExamples && topic.Examples != null && topic.Examples.Count > 0)
+                    {
+                        var examples = string.Join("\n", topic.Examples);
+                        var detailPart = topic.Detail;
+                        expectingFollowUp = true;
+                        lastResponseCategory = "example";
+                        return (string.IsNullOrEmpty(empathyPrefix) ? string.Empty : empathyPrefix) + examples + "\n\n" + detailPart;
+                    }
+
+                    if (wantsMitigation && !string.IsNullOrEmpty(topic.Detail))
+                    {
+                        // Provide a mitigation-focused response
+                        var mitigation = "\n\nMitigation steps: ";
+                        switch (best.Key.ToLowerInvariant())
+                        {
+                            case "password":
+                                mitigation += "use unique passphrases, enable MFA, use a trusted password manager, enable account alerts";
+                                break;
+                            case "phishing":
+                                mitigation += "verify sender, don't click unknown links, use email filters, confirm requests via phone";
+                                break;
+                            case "privacy":
+                                mitigation += "review privacy settings, limit sharing, use privacy tools and track permissions";
+                                break;
+                            case "scam":
+                                mitigation += "verify callers, never share OTPs, contact institutions via official channels";
+                                break;
+                            case "banking":
+                                mitigation += "use official apps, enable alerts, avoid transactions on public WiFi";
+                                break;
+                            case "vpn":
+                                mitigation += "choose reputable VPN, review privacy policy, avoid free VPNs";
+                                break;
+                            case "ransomware":
+                                mitigation += "maintain offline backups, update systems, use endpoint protection and caution with attachments";
+                                break;
+                            case "social engineering":
+                                mitigation += "verify identities, use strict approval workflows, train staff regularly";
+                                break;
+                            default:
+                                mitigation += "follow security best practices";
+                                break;
+                        }
+
+                        expectingFollowUp = true;
+                        lastResponseCategory = "mitigation";
+                        return (string.IsNullOrEmpty(empathyPrefix) ? string.Empty : empathyPrefix) + topic.Detail + mitigation;
+                    }
+
+                    if (wantsDetail && !string.IsNullOrEmpty(topic.Detail))
+                    {
+                        // Provide the detailed explanation plus a short actionable checklist
+                        var checklist = "\n\nQuick checklist: ";
+                        switch (best.Key.ToLowerInvariant())
+                        {
+                            case "password":
+                                checklist += "use unique passphrases, enable MFA, use a password manager";
+                                break;
+                            case "phishing":
+                                checklist += "verify senders, hover links, don't enable macros, report suspicious emails";
+                                break;
+                            case "privacy":
+                                checklist += "review privacy settings, limit public data, audit app permissions";
+                                break;
+                            case "scam":
+                                checklist += "don't share OTPs, verify offers, report scams to authorities";
+                                break;
+                            case "banking":
+                                checklist += "enable alerts, use official apps, monitor statements, avoid public WiFi";
+                                break;
+                            case "vpn":
+                                checklist += "choose reputable VPNs, check privacy policy, avoid free VPNs";
+                                break;
+                            case "ransomware":
+                                checklist += "maintain offline backups, patch systems, restrict privileges";
+                                break;
+                            case "social engineering":
+                                checklist += "verify identities, follow approval workflows, train staff";
+                                break;
+                            default:
+                                checklist += "follow best security practices";
+                                break;
+                        }
+
+                        expectingFollowUp = true;
+                        lastResponseCategory = "detail";
+                        return (string.IsNullOrEmpty(empathyPrefix) ? string.Empty : empathyPrefix) + topic.Detail + checklist;
+                    }
+
+                    // Otherwise return a short tip and suggest asking for details
+                    var resp = responses[random.Next(responses.Count)];
+                    // set follow-up state so user can ask 'another tip' or 'tell me more'
+                    expectingFollowUp = true;
+                    lastResponseCategory = "tip";
+                    return (string.IsNullOrEmpty(empathyPrefix) ? string.Empty : empathyPrefix) + resp;
+                }
+            }
+
+                if (input.Contains("another tip") ||
+                    input.Contains("tell me more") ||
+                    input.Contains("explain more"))
+                {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.ContainsKey(LastTopic))
+                {
+                    var responses = topicsDict[LastTopic].Tips;
+                    return responses[random.Next(responses.Count)];
+                }
+                }
+
+                if (input.Contains("how are you"))
+                {
+                    return $"I'm doing great, {UserName}!";
+                }
+
+            // Greetings and general intents
+            if (Regex.IsMatch(input, "\b(hi|hello|hey|good morning|good afternoon|good evening)\b", RegexOptions.IgnoreCase))
+            {
+                return PickRandom(generalResponses["greeting"]);
+            }
+
+            if (Regex.IsMatch(input, "\b(thanks|thank you|cheers)\b", RegexOptions.IgnoreCase))
+            {
+                return PickRandom(generalResponses["thanks"]);
+            }
+
+            if (input.Contains("help") || input.Contains("what can i ask") || input.Contains("what can i ask?"))
+            {
+                return PickRandom(generalResponses["help"]);
+            }
+
+            if (input.Contains("purpose") || input.Contains("what do you do"))
+            {
+                return PickRandom(generalResponses["purpose"]);
+            }
+
+                // If nothing matched above, return an unknown/fallback response
+                return PickRandom(unknownResponses);
+            }
+            catch (Exception)
+            {
+                // On unexpected errors, reset follow-up state to avoid stuck conversation and return a friendly fallback.
+                expectingFollowUp = false;
+                lastResponseCategory = string.Empty;
+                return PickRandom(unknownResponses);
+            }
+        }
+
+        private void DetectSentiment(string input, out string response, out string moodTag)
+        {
+            response = string.Empty;
+            moodTag = string.Empty;
+
+            if (input.Contains("worried", StringComparison.OrdinalIgnoreCase))
+            {
+                if (sentimentResponses.TryGetValue("worried", out var list))
+                {
+                    response = PickRandom(list);
+                    moodTag = "worried";
+                }
+                return;
+            }
+
+            if (input.Contains("frustrated", StringComparison.OrdinalIgnoreCase))
+            {
+                if (sentimentResponses.TryGetValue("frustrated", out var list))
+                {
+                    response = PickRandom(list);
+                    moodTag = "frustrated";
+                }
+                return;
+            }
+
+            if (input.Contains("curious", StringComparison.OrdinalIgnoreCase))
+            {
+                if (sentimentResponses.TryGetValue("curious", out var list))
+                {
+                    response = PickRandom(list);
+                    moodTag = "curious";
+                }
+            }
+        }
+
+        private string PickRandom(List<string> options)
+        {
+            if (options == null || options.Count == 0) return string.Empty;
+            return options[random.Next(options.Count)];
+        }
+
+        private string PickRandomOrFallback(List<string>? options, string fallback)
+        {
+            if (options == null || options.Count == 0) return fallback;
+            return options[random.Next(options.Count)];
+        }
+
+        private string ResolveFollowUp(string input, string empathyPrefix = "")
+        {
+            var prefix = string.IsNullOrEmpty(empathyPrefix) ? string.Empty : empathyPrefix;
+            // If user declines further info
+            if (Regex.IsMatch(input, "\b(no|not now|later|thanks|thank you)\b", RegexOptions.IgnoreCase))
+            {
+                expectingFollowUp = false;
+                lastResponseCategory = string.Empty;
+                return prefix + "Alright — let me know if you want to discuss another topic.";
+            }
+
+            // If user asks for an example after a previous reply
+            if (Regex.IsMatch(input, "\b(example|examples|for example|show me)\b", RegexOptions.IgnoreCase))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.TryGetValue(LastTopic, out var t) && t.Examples != null && t.Examples.Count > 0)
+                {
+                    expectingFollowUp = true; // still able to follow up
+                    lastResponseCategory = "example";
+                    return prefix + string.Join("\n", t.Examples);
+                }
+            }
+
+            // If user wants mitigation steps
+            if (Regex.IsMatch(input, "\b(mitigat|prevent|how to|steps|protect)\b", RegexOptions.IgnoreCase))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.TryGetValue(LastTopic, out var td) && !string.IsNullOrEmpty(td.Detail))
+                {
+                    expectingFollowUp = true;
+                    lastResponseCategory = "mitigation";
+                    // Provide short mitigation tailored to LastTopic
+                    var mitigation = GetMitigationFor(LastTopic);
+                    return prefix + td.Detail + "\n\n" + mitigation;
+                }
+            }
+
+            // If user expresses confusion or asks for clarification, provide detailed explanation and mitigation
+            if (Regex.IsMatch(input, "\b(don'?t understand|dont understand|confus|i'?m lost|i am lost|i dont know|can you explain|explain this|clarify|more detail|more details|what does .* mean)\b", RegexOptions.IgnoreCase))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.TryGetValue(LastTopic, out var td2) && !string.IsNullOrEmpty(td2.Detail))
+                {
+                    expectingFollowUp = true;
+                    lastResponseCategory = "detail";
+                    var mitigation = GetMitigationFor(LastTopic);
+                    var examples = td2.Examples != null && td2.Examples.Count > 0 ? "\n\nExample:\n" + string.Join("\n", td2.Examples) : string.Empty;
+                    return prefix + td2.Detail + "\n\n" + mitigation + examples;
+                }
+            }
+
+            // If user asks for another tip
+            if (Regex.IsMatch(input, "\b(another tip|another|more tips|tell me more|more info)\b", RegexOptions.IgnoreCase))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.TryGetValue(LastTopic, out var listTopic))
+                {
+                    var next = GetMoreTip(LastTopic);
+                    expectingFollowUp = true;
+                    lastResponseCategory = "tip";
+                    return prefix + next;
+                }
+            }
+
+            // Pronoun resolution: if user says 'it' or 'that'
+            if (Regex.IsMatch(input, "\b(it|that|this)\b", RegexOptions.IgnoreCase))
+            {
+                if (!string.IsNullOrEmpty(LastTopic) && topicsDict.TryGetValue(LastTopic, out var td) && !string.IsNullOrEmpty(td.Detail))
+                {
+                    return prefix + td.Detail;
+                }
+            }
+
+            return string.Empty; // not handled here
+        }
+
+        private string GetMoreTip(string topic)
+        {
+            if (!topicsDict.TryGetValue(topic, out var t) || t.Tips == null || t.Tips.Count == 0)
+                return "I don't have more tips on that right now.";
+
+            // Return a random tip
+            return t.Tips[random.Next(t.Tips.Count)];
+        }
+
+        private string GetMitigationFor(string topic)
+        {
+            switch (topic.ToLowerInvariant())
+            {
+                case "password":
+                    return "Mitigation steps: use unique passphrases, enable MFA, use password manager, enable account alerts.";
+                case "phishing":
+                    return "Mitigation steps: verify sender, hover links, don't enable macros, use email filters.";
+                case "privacy":
+                    return "Mitigation steps: review privacy settings, limit public sharing, audit app permissions.";
+                case "scam":
+                    return "Mitigation steps: never share OTPs, verify offers independently, report suspicious activity.";
+                case "banking":
+                    return "Mitigation steps: use official apps, enable alerts, avoid public WiFi for transactions.";
+                case "vpn":
+                    return "Mitigation steps: choose reputable VPNs, check privacy policy, avoid free VPNs.";
+                case "ransomware":
+                    return "Mitigation steps: maintain offline backups, patch systems, restrict privileges.";
+                case "social engineering":
+                    return "Mitigation steps: verify identities, strict approval workflows, train staff regularly.";
+                default:
+                    return "Mitigation steps: follow security best practices.";
+            }
+        }
+
+        public bool ShouldExit(string input)
+        {
+            return input.ToLower() switch
+            {
+                "exit" or "quit" or "bye" => true,
+                _ => false
+            };
+        }
+
+        private string GetTopicsList()
+        {
+            return "Topics: " + string.Join(", ", topicsDict.Keys);
+        }
+    }
+}

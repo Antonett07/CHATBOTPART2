@@ -1,0 +1,24 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+
+namespace CHATBOTPART2.Services
+{
+    public class MemoryService
+    {
+        public UserMemory Memory { get; } = new();
+
+        public void SaveTopic(string topic)
+        {
+            Memory.FavouriteTopic = topic;
+        }
+
+        public void SaveLastTopic(string topic)
+        {
+            Memory.LastTopic = topic;
+        }
+    }
+}
