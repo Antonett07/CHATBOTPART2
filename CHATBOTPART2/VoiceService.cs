@@ -45,7 +45,9 @@ namespace CHATBOTPART2
             // fallback simple beep sequence (not actual speech)
             try
             {
+                // simple beep sequence as fallback
                 Console.Beep(700, 80);
+                Console.Beep(880, 80);
             }
             catch { }
         }
