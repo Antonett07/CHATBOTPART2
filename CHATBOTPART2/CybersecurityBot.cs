@@ -291,7 +291,7 @@ namespace CHATBOTPART2
         {
             if (string.IsNullOrWhiteSpace(input))
             {
-                return "❌ Please enter a valid message.";
+                return " Please enter a valid message.";
             }
 
             // Preserve original input (for names) and normalize a lowercase working copy
