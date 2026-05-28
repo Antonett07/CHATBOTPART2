@@ -28,7 +28,7 @@ namespace CHATBOTPART2
 
             UIHelper.PlayWelcomeSound();
 
-            AppendMessage("🤖 Welcome to Chatbot Part2!", true);
+            AppendMessage(" Welcome to Chatbot Part2!", true);
 
             // Initialize voice service
             voiceService = new VoiceService();
@@ -49,7 +49,7 @@ namespace CHATBOTPART2
                 return;
             }
 
-            AppendMessage($"👤 You: {input}", false);
+            AppendMessage($" You: {input}", false);
 
             // If the bot doesn't have a username, decide whether this input is a name or a command/sentiment/topic
             if (string.IsNullOrWhiteSpace(bot.UserName))
