@@ -42,6 +42,7 @@
                 <Separator Margin="6,8,6,6" />
                 <Button x:Name="ShowTopicsButton" Content="Show Topics" Margin="0,4,0,0" Click="ShowTopicsButton_Click" />
                 <Button x:Name="ExitButton" Content="Exit" Margin="0,8,0,0" Background="#E53935" Foreground="White" Click="ExitButton_Click" />
+                <Button x:Name="StopVoiceButton" Content="Stop Voice" Margin="0,8,0,0" Click="StopVoiceButton_Click" />
                
             </StackPanel>
         </Border>
@@ -55,8 +56,9 @@
 
         <!-- Input area -->
         <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="8" HorizontalAlignment="Stretch">
-            <TextBox x:Name="UserInput" FontSize="15" Width="500" Height="42" VerticalContentAlignment="Center" Margin="0,0,8,0" KeyDown="UserInput_KeyDown" />
+            <TextBox x:Name="UserInput" FontSize="15" Width="420" Height="42" VerticalContentAlignment="Center" Margin="0,0,8,0" KeyDown="UserInput_KeyDown" />
             <Button Content="Send" Width="120" Height="42" Margin="0,0,8,0" Click="SendButton_Click" Background="#0B5FFF" Foreground="White" />
+            <CheckBox x:Name="VoiceEnabled" Content="Voice" IsChecked="True" VerticalAlignment="Center" Margin="6,0,0,0" />
         </StackPanel>
     </Grid>
 </Window>

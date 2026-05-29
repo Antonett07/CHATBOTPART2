@@ -35,6 +35,7 @@ namespace CHATBOTPART2
             // Ask permission to show topics in the WPF UI
             AppendMessage("Welcome to chatbot. What is your name? Please enter your name to start.", true);
 
+            // (Speech is handled by AppendMessage to avoid duplicate playback)
             // Disable topic and control buttons until we have a user name
             SetTopicButtonsEnabled(false);
         }
@@ -155,11 +156,6 @@ namespace CHATBOTPART2
                 string response = bot.GetResponse(tag);
                 AppendMessage($" Bot: {response}", true);
                 lastBotMessage = response;
-                var check = this.FindName("VoiceEnabled") as CheckBox;
-                if (check?.IsChecked == true)
-                {
-                    voiceService.SpeakAsync(response);
-                }
             }
         }
 
@@ -173,11 +169,6 @@ namespace CHATBOTPART2
             string response = bot.GetResponse("menu");
             AppendMessage($" Bot: {response}", true);
             lastBotMessage = response;
-            var check = this.FindName("VoiceEnabled") as CheckBox;
-            if (check?.IsChecked == true)
-            {
-                voiceService.SpeakAsync(response);
-            }
         }
 
         private void ExitButton_Click(object sender, RoutedEventArgs e)
@@ -189,13 +180,22 @@ namespace CHATBOTPART2
             }
             var farewell = $" Goodbye! Stay safe online!";
             AppendMessage($" Bot: {farewell}", true);
-            var check = this.FindName("VoiceEnabled") as CheckBox;
-            if (check?.IsChecked == true)
-            {
-                voiceService.SpeakAsync(farewell);
-            }
+            // Speech will be handled by AppendMessage
             // Give time for speech to start
             Task.Delay(400).ContinueWith(_ => Dispatcher.Invoke(Close));
+        }
+
+        private void StopVoiceButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                voiceService.Stop();
+                AppendMessage(" Voice playback stopped.", true);
+            }
+            catch
+            {
+                AppendMessage(" Unable to stop voice playback.", true);
+            }
         }
 
         private void SetTopicButtonsEnabled(bool enabled)
