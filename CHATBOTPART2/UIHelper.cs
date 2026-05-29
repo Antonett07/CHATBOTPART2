@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Media;
 using System.Threading;
 
 namespace CHATBOTPART2
@@ -14,18 +16,26 @@ namespace CHATBOTPART2
             Error
         }
 
+        // Method to play a welcome sound when the application starts
         public static void PlayWelcomeSound()
         {
-            // Minimal cross-platform friendly sound: beep
             try
             {
-                Console.Beep(800, 120);
+                using var player = new SoundPlayer("welcome.wav");
+                player.PlaySync();
             }
-            catch
+            catch (FileNotFoundException)
             {
-                // Ignore on platforms that don't support Console.Beep
+                ColorWriteLine("Voice greeting ready! (Place 'welcome.wav' in bin/Debug/net8.0-windows for audio)", AppColor.Info);
+                Thread.Sleep(1500);
+            }
+            catch (Exception ex)
+            {
+                UIHelper.ColorWriteLine($"Audio init error: {ex.Message}", UIHelper.AppColor.Error);
+                Thread.Sleep(1500);
             }
         }
+
 
         public static void DisplayLogo()
         {

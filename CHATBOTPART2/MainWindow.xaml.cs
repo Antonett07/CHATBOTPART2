@@ -23,15 +23,14 @@ namespace CHATBOTPART2
         public MainWindow()
         {
             InitializeComponent();
-
             bot = new CybersecurityBot();
+
+            // Initialize voice service first so initial bot messages can be spoken
+            voiceService = new VoiceService();
 
             UIHelper.PlayWelcomeSound();
 
             AppendMessage(" Welcome to Chatbot Part2!", true);
-
-            // Initialize voice service
-            voiceService = new VoiceService();
 
             // Ask permission to show topics in the WPF UI
             AppendMessage("Welcome to chatbot. What is your name? Please enter your name to start.", true);
@@ -80,11 +79,6 @@ namespace CHATBOTPART2
                     var tempResponse = bot.GetResponse(input);
                     AppendMessage($" Bot: {tempResponse}", true);
                     lastBotMessage = tempResponse;
-                    var check2 = this.FindName("VoiceEnabled") as CheckBox;
-                    if (check2?.IsChecked == true)
-                    {
-                        voiceService.SpeakAsync(tempResponse);
-                    }
                     UserInput.Clear();
                     UserInput.Focus();
                     return;
@@ -103,11 +97,6 @@ namespace CHATBOTPART2
 
             AppendMessage($" Bot: {response}", true);
             lastBotMessage = response;
-            var check = this.FindName("VoiceEnabled") as CheckBox;
-            if (check?.IsChecked == true)
-            {
-                voiceService.SpeakAsync(response);
-            }
 
             UserInput.Clear();
             UserInput.Focus();
@@ -134,6 +123,22 @@ namespace CHATBOTPART2
             ChatArea.Document.Blocks.Add(paragraph);
 
             ChatArea.ScrollToEnd();
+            // Speak bot messages when voice is enabled
+            if (isBot && voiceService != null)
+            {
+                var check = this.FindName("VoiceEnabled") as CheckBox;
+                if (check?.IsChecked == true)
+                {
+                    // remove any leading label like 'Bot:' before speaking
+                    var speakText = message;
+                    var idx = message.IndexOf(':');
+                    if (idx >= 0 && idx + 1 < message.Length)
+                    {
+                        speakText = message.Substring(idx + 1).Trim();
+                    }
+                    voiceService.SpeakAsync(speakText);
+                }
+            }
         }
 
         private void TopicButton_Click(object sender, RoutedEventArgs e)

@@ -9,9 +9,11 @@ namespace CHATBOTPART2
 
     internal class Program
     {
+
+
         // Converted console entry point to a named method to avoid multiple Main entry points
         // The WPF App.xaml provides the application's real entry point.
-        public static void RunConsole()
+        static void RunConsole()
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.InputEncoding = System.Text.Encoding.UTF8;

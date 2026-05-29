@@ -52,6 +52,7 @@ namespace CHATBOTPART2
             catch { }
         }
 
+
         public void SpeakAsync(string text)
         {
             Task.Run(() => Speak(text));
